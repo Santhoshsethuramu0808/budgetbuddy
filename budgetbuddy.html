@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>BudgetBuddy 🍎 Final Fixed</title>
+  <title>BudgetBuddy 🔐 Firebase + Google Login</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -27,28 +27,28 @@
       max-width: 100% !important;
       height: auto !important;
     }
-    input, select, textarea {
+    input, select {
       color-scheme: light dark;
     }
   </style>
 </head>
-<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-white transition">
+<body class="bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-white transition duration-300">
 
-  <!-- Theme Toggle -->
+  <!-- 🌙 Theme Switch -->
   <button id="themeToggle" class="theme-toggle">🌙</button>
 
-  <!-- Login Section -->
+  <!-- 🔐 Login -->
   <div class="text-center my-4">
     <button id="loginBtn" class="bg-red-600 text-white px-4 py-2 rounded">🔐 Login with Google</button>
     <button id="logoutBtn" class="bg-gray-600 text-white px-4 py-2 rounded hidden">🚪 Logout</button>
     <p id="userInfo" class="mt-2 text-sm text-gray-700 dark:text-gray-300"></p>
   </div>
 
-  <!-- App Container -->
+  <!-- 💼 Main Container -->
   <div class="max-w-5xl mx-auto p-6 bg-white dark:bg-gray-800 shadow-xl rounded-2xl mb-10">
     <h1 class="text-3xl font-semibold mb-6 text-center">💼 BudgetBuddy</h1>
 
-    <!-- Charts -->
+    <!-- 📊 Charts -->
     <div class="grid md:grid-cols-2 gap-6 items-center mb-6">
       <div class="bg-gray-100 dark:bg-gray-700 p-4 rounded-xl">
         <canvas id="pieChart"></canvas>
@@ -58,23 +58,20 @@
       </div>
     </div>
 
-    <!-- Balance Info -->
+    <!-- 💰 Balance Info -->
     <h2 class="text-xl font-bold text-center mb-2">Total Balance: ₹<span id="balance">0</span></h2>
     <input type="number" id="monthlyBudget" placeholder="💰 Monthly Budget (₹)" class="w-full p-3 rounded-lg mb-4 border border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" />
-
-    <!-- Budget Bar -->
     <div class="h-4 w-full bg-gray-200 rounded-full overflow-hidden mb-2">
       <div id="budgetBar" class="h-full bg-blue-500 w-0 transition-all duration-300"></div>
     </div>
     <p id="budgetStatus" class="text-sm"></p>
     <p id="comparisonMessage" class="text-sm mb-4"></p>
 
-    <!-- Transaction Inputs -->
+    <!-- ➕ Add Transaction -->
     <div class="grid md:grid-cols-2 gap-4">
       <input type="text" id="desc" placeholder="📝 Description" class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" />
       <input type="number" id="amount" placeholder="₹ Amount" class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" />
     </div>
-
     <div class="grid md:grid-cols-3 gap-4 mt-4">
       <input type="date" id="txnDate" class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" />
       <select id="type" class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white">
@@ -85,243 +82,217 @@
         <option>General</option><option>Food</option><option>Bills</option><option>Transport</option><option>Shopping</option>
       </select>
     </div>
-
     <button id="addBtn" class="mt-4 w-full bg-blue-600 text-white p-3 rounded-lg hover:bg-blue-700">➕ Add Transaction</button>
 
-    <!-- Filter -->
+    <!-- 🔍 Filters -->
     <div class="mt-6 grid md:grid-cols-3 gap-4">
       <input type="text" id="searchBox" placeholder="🔍 Search" class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" />
       <input type="date" id="filterDate" class="p-3 rounded-lg border bg-gray-50 dark:bg-gray-700 text-gray-900 dark:text-white" />
       <button id="resetFilters" class="bg-gray-200 dark:bg-gray-600 text-gray-800 dark:text-white rounded-lg p-3 hover:bg-gray-300 dark:hover:bg-gray-500">Reset Filters</button>
     </div>
 
-    <!-- Transaction List -->
+    <!-- 📋 Transaction List -->
     <h3 class="text-xl font-semibold mt-6">📋 Transactions</h3>
     <ul id="list" class="mt-2 space-y-2 max-h-64 overflow-y-auto text-sm"></ul>
 
-    <!-- Export -->
+    <!-- 📤 Export Buttons -->
     <div class="grid grid-cols-2 gap-4 mt-6">
       <button id="downloadCSV" class="bg-green-600 text-white p-3 rounded-lg hover:bg-green-700">📤 CSV</button>
       <button id="downloadPDF" class="bg-purple-600 text-white p-3 rounded-lg hover:bg-purple-700">📄 PDF</button>
     </div>
 
-    <!-- Summary -->
+    <!-- 📆 Monthly Summary -->
     <h3 class="text-xl font-semibold mt-6">📆 Monthly Summary</h3>
     <div id="monthlyBreakdown" class="text-sm mt-2"></div>
     <div id="tipsArea" class="mt-6"></div>
   </div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
-  <!-- Scripts -->
-  <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
-    import { getDatabase, ref, set, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
-    import { getAuth, signInWithPopup, GoogleAuthProvider, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+  const firebaseConfig = {
+    apiKey: "AIzaSyDzcPDZWX-2waZf70-izcSL9N6MmIBb5lo",
+    authDomain: "budgetbuddy-e1a4f.firebaseapp.com",
+    databaseURL: "https://budgetbuddy-e1a4f-default-rtdb.firebaseio.com",
+    projectId: "budgetbuddy-e1a4f",
+    storageBucket: "budgetbuddy-e1a4f.appspot.com",
+    messagingSenderId: "152240954509",
+    appId: "1:152240954509:web:828858f420fe5a92abd6c4"
+  };
 
-    const firebaseConfig = {
-      apiKey: "AIzaSyDzcPDZWX-2waZf70-izcSL9N6MmIBb5lo",
-      authDomain: "budgetbuddy-e1a4f.firebaseapp.com",
-      databaseURL: "https://budgetbuddy-e1a4f-default-rtdb.firebaseio.com",
-      projectId: "budgetbuddy-e1a4f",
-      storageBucket: "budgetbuddy-e1a4f.appspot.com",
-      messagingSenderId: "152240954509",
-      appId: "1:152240954509:web:828858f420fe5a92abd6c4"
-    };
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const auth = getAuth();
+  const provider = new GoogleAuthProvider();
+  let transactions = [];
+  let userRef = null;
 
-    const app = initializeApp(firebaseConfig);
-    const db = getDatabase(app);
-    const auth = getAuth();
-    const provider = new GoogleAuthProvider();
-    let transactions = [];
-let currentUserDbRef = null;
-
-// 🟢 Initialize Pie Chart
-const pieChart = new Chart(document.getElementById("pieChart"), {
-  type: 'doughnut',
-  data: {
-    labels: ['Income', 'Expense'],
-    datasets: [{ data: [0, 0], backgroundColor: ['#16a34a', '#dc2626'] }]
-  },
-  options: { plugins: { legend: { position: 'bottom' } } }
-});
-
-// 🔵 Initialize Bar Chart
-const barChart = new Chart(document.getElementById("barChart"), {
-  type: 'bar',
-  data: {
-    labels: ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
-    datasets: [{ label: 'Expenses', data: Array(12).fill(0), backgroundColor: '#3b82f6', borderRadius: 8 }]
-  },
-  options: {
-    responsive: true,
-    maintainAspectRatio: false,
-    scales: { y: { beginAtZero: true } },
-    plugins: { legend: { display: false } }
-  }
-});
-
-// ✅ Update UI
-function updateUI() {
-  const search = document.getElementById("searchBox").value.toLowerCase();
-  const filterDate = document.getElementById("filterDate").value;
-  const list = document.getElementById("list");
-  list.innerHTML = "";
-  const monthly = Array(12).fill(0);
-  let income = 0, expense = 0;
-
-  transactions.filter(t => t.desc.toLowerCase().includes(search) && (!filterDate || t.date === filterDate)).forEach((t, idx) => {
-    const li = document.createElement("li");
-    li.className = "flex justify-between items-center p-2 rounded bg-gray-100 dark:bg-gray-700";
-    li.innerHTML = `
-      <span class="${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">
-        ₹${t.amount} - ${t.desc} (${t.category})
-      </span>
-      <div class="flex items-center gap-2">
-        <span class="text-xs">${t.date}</span>
-        <button onclick="deleteTxn(${idx})" class="text-red-500 hover:text-red-700 text-sm">❌</button>
-      </div>
-    `;
-    list.appendChild(li);
-
-    const m = new Date(t.date).getMonth();
-    if (t.type === 'income') income += t.amount;
-    else { expense += t.amount; monthly[m] += t.amount; }
+  // Chart.js Initialization
+  const pieChart = new Chart(document.getElementById("pieChart"), {
+    type: 'doughnut',
+    data: { labels: ['Income', 'Expense'], datasets: [{ data: [0, 0], backgroundColor: ['#16a34a', '#dc2626'] }] },
+    options: { plugins: { legend: { position: 'bottom' } } }
   });
 
-  document.getElementById("balance").textContent = income - expense;
-  pieChart.data.datasets[0].data = [income, expense];
-  pieChart.update();
+  const barChart = new Chart(document.getElementById("barChart"), {
+    type: 'bar',
+    data: {
+      labels: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+      datasets: [{ label: "Expenses", data: Array(12).fill(0), backgroundColor: '#3b82f6', borderRadius: 6 }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      scales: { y: { beginAtZero: true } },
+      plugins: { legend: { display: false } }
+    }
+  });
 
-  barChart.data.datasets[0].data = monthly;
-  barChart.update();
+  // 🟢 Update UI Function
+  function updateUI() {
+    const search = document.getElementById("searchBox").value.toLowerCase();
+    const filterDate = document.getElementById("filterDate").value;
+    const list = document.getElementById("list");
+    list.innerHTML = "";
+    const monthly = Array(12).fill(0);
+    let income = 0, expense = 0;
 
-  const now = new Date().getMonth();
-  const budget = parseFloat(document.getElementById("monthlyBudget").value) || 1;
-  const percent = (monthly[now] / budget) * 100;
-  const bar = document.getElementById("budgetBar");
-  bar.style.width = Math.min(percent, 100) + "%";
-  bar.className = "h-full transition-all duration-300 " +
-    (percent < 70 ? "bg-green-500" : percent < 90 ? "bg-yellow-400" : "bg-red-600");
+    transactions
+      .filter(t => t.desc.toLowerCase().includes(search) && (!filterDate || t.date === filterDate))
+      .forEach((t, idx) => {
+        const li = document.createElement("li");
+        li.className = "flex justify-between items-center bg-gray-100 dark:bg-gray-700 p-2 rounded";
+        li.innerHTML = `
+          <span class="${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">
+            ₹${t.amount} - ${t.desc} (${t.category})
+          </span>
+          <div class="flex items-center gap-2">
+            <span class="text-xs">${t.date}</span>
+            <button class="text-red-500 hover:text-red-700 text-sm" onclick="deleteTxn(${idx})">❌</button>
+          </div>`;
+        list.appendChild(li);
 
-  document.getElementById("budgetStatus").textContent = `You spent ${percent.toFixed(1)}% of your budget.`;
-  document.getElementById("comparisonMessage").textContent =
-    now > 0 ? (monthly[now] > monthly[now - 1]
-      ? `📈 ₹${(monthly[now] - monthly[now - 1]).toFixed(2)} more than last month`
-      : `📉 ₹${(monthly[now - 1] - monthly[now]).toFixed(2)} saved from last month`) : "";
+        const month = new Date(t.date).getMonth();
+        if (t.type === 'income') income += t.amount;
+        else { expense += t.amount; monthly[month] += t.amount; }
+      });
 
-  document.getElementById("monthlyBreakdown").innerHTML = monthly.map((val, i) =>
-    `<div>${barChart.data.labels[i]}: ₹${val}</div>`).join("");
+    document.getElementById("balance").textContent = income - expense;
+    pieChart.data.datasets[0].data = [income, expense];
+    pieChart.update();
+    barChart.data.datasets[0].data = monthly;
+    barChart.update();
 
-  document.getElementById("tipsArea").innerHTML = `<div class="mt-4 p-4 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100">
-    💡 Tip: ${percent < 70 ? 'Great job! Keep it up!' : percent < 90 ? 'Monitor your spending.' : 'Cut down on extras!'}
-  </div>`;
-}
+    const now = new Date().getMonth();
+    const budget = parseFloat(document.getElementById("monthlyBudget").value) || 1;
+    const percent = (monthly[now] / budget) * 100;
+    const bar = document.getElementById("budgetBar");
+    bar.style.width = Math.min(percent, 100) + "%";
+    bar.className = "h-full transition-all duration-300 " +
+      (percent < 70 ? "bg-green-500" : percent < 90 ? "bg-yellow-400" : "bg-red-600");
 
-// 🗑 Delete Transaction
-window.deleteTxn = (idx) => {
-  if (confirm("Delete this transaction?")) {
+    document.getElementById("budgetStatus").textContent = `You spent ${percent.toFixed(1)}% of your budget.`;
+    document.getElementById("comparisonMessage").textContent =
+      now > 0 ? (monthly[now] > monthly[now - 1]
+        ? `📈 ₹${(monthly[now] - monthly[now - 1]).toFixed(2)} more than last month`
+        : `📉 ₹${(monthly[now - 1] - monthly[now]).toFixed(2)} saved than last month`) : "";
+
+    document.getElementById("monthlyBreakdown").innerHTML = monthly.map((val, i) =>
+      `<div>${barChart.data.labels[i]}: ₹${val}</div>`).join("");
+
+    document.getElementById("tipsArea").innerHTML = `<div class="mt-4 p-4 rounded bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100">
+      💡 Tip: ${percent < 70 ? 'Excellent job!' : percent < 90 ? 'Watch your spending.' : 'Try to reduce non-essentials.'}
+    </div>`;
+  }
+
+  // 🔴 Delete Transaction
+  window.deleteTxn = (idx) => {
+    if (!userRef) return;
     transactions.splice(idx, 1);
-    set(currentUserDbRef, transactions);
-  }
-};
+    set(userRef, transactions);
+  };
 
-// 🔐 Firebase DB Handler
-function setupDatabase(uid) {
-  currentUserDbRef = ref(db, `users/${uid}/transactions`);
-  onValue(currentUserDbRef, snap => {
-    transactions = snap.exists() ? snap.val() : [];
+  // 🟠 Setup User-Specific Firebase DB
+  function setupDatabase(uid) {
+    userRef = ref(db, `users/${uid}/transactions`);
+    onValue(userRef, snap => {
+      transactions = snap.exists() ? snap.val() : [];
+      updateUI();
+    });
+  }
+
+  // ➕ Add Transaction
+  document.getElementById("addBtn").onclick = () => {
+    const desc = document.getElementById("desc").value.trim();
+    const amount = parseFloat(document.getElementById("amount").value);
+    const date = document.getElementById("txnDate").value;
+    const type = document.getElementById("type").value;
+    const category = document.getElementById("category").value;
+    if (!desc || isNaN(amount) || !date || !userRef) return alert("Please fill all fields properly.");
+    transactions.push({ desc, amount, date, type, category });
+    set(userRef, transactions);
+    document.getElementById("desc").value = "";
+    document.getElementById("amount").value = "";
+    document.getElementById("txnDate").value = "";
+  };
+
+  // 🌗 Theme Toggle
+  document.getElementById("themeToggle").onclick = () => document.body.classList.toggle("dark");
+
+  // 🔍 Filters
+  document.getElementById("monthlyBudget").oninput = updateUI;
+  document.getElementById("searchBox").oninput = updateUI;
+  document.getElementById("filterDate").onchange = updateUI;
+  document.getElementById("resetFilters").onclick = () => {
+    document.getElementById("searchBox").value = "";
+    document.getElementById("filterDate").value = "";
     updateUI();
+  };
+
+  // 📥 CSV Download
+  document.getElementById("downloadCSV").onclick = () => {
+    let csv = "Description,Amount,Type,Date,Category\n";
+    transactions.forEach(t => {
+      csv += `"${t.desc}",${t.amount},${t.type},${t.date},${t.category}\n`;
+    });
+    const blob = new Blob([csv], { type: "text/csv" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "budgetbuddy.csv";
+    a.click();
+  };
+
+  // 📄 PDF Download
+  document.getElementById("downloadPDF").onclick = async () => {
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF();
+    const canvas = await html2canvas(document.body);
+    const img = canvas.toDataURL("image/png");
+    pdf.addImage(img, "PNG", 10, 10, 190, 0);
+    pdf.save("budgetbuddy.pdf");
+  };
+
+  // 🔐 Login / Logout
+  document.getElementById("loginBtn").onclick = () => signInWithPopup(auth, provider);
+  document.getElementById("logoutBtn").onclick = () => signOut(auth);
+
+  onAuthStateChanged(auth, user => {
+    const userInfo = document.getElementById("userInfo");
+    if (user) {
+      userInfo.textContent = `Welcome, ${user.displayName}`;
+      document.getElementById("loginBtn").classList.add("hidden");
+      document.getElementById("logoutBtn").classList.remove("hidden");
+      setupDatabase(user.uid);
+    } else {
+      userInfo.textContent = "Not logged in";
+      document.getElementById("loginBtn").classList.remove("hidden");
+      document.getElementById("logoutBtn").classList.add("hidden");
+      transactions = [];
+      updateUI();
+    }
   });
-}
-
-// ➕ Add Button
-document.getElementById("addBtn").onclick = () => {
-  const desc = document.getElementById("desc").value.trim();
-  const amount = parseFloat(document.getElementById("amount").value);
-  const date = document.getElementById("txnDate").value;
-  const type = document.getElementById("type").value;
-  const category = document.getElementById("category").value;
-
-  if (!auth.currentUser) {
-    alert("Please login using Google first.");
-    return;
-  }
-
-  if (!desc || isNaN(amount) || !date) {
-    alert("Please fill in all fields correctly.");
-    return;
-  }
-
-  if (!currentUserDbRef) {
-    alert("Database reference not found. Please try re-logging.");
-    return;
-  }
-
-  transactions.push({ desc, amount, date, type, category });
-  set(currentUserDbRef, transactions)
-    .then(() => {
-      document.getElementById("desc").value = "";
-      document.getElementById("amount").value = "";
-      document.getElementById("txnDate").value = "";
-    })
-    .catch((err) => alert("Error saving transaction: " + err.message));
-};
-
-// 🌙 Theme toggle
-document.getElementById("themeToggle").onclick = () => document.body.classList.toggle("dark");
-
-// 📥 Inputs and Filters
-document.getElementById("monthlyBudget").oninput = updateUI;
-document.getElementById("searchBox").oninput = updateUI;
-document.getElementById("filterDate").onchange = updateUI;
-document.getElementById("resetFilters").onclick = () => {
-  document.getElementById("searchBox").value = "";
-  document.getElementById("filterDate").value = "";
-  updateUI();
-};
-
-// 📤 Export CSV
-document.getElementById("downloadCSV").onclick = () => {
-  let csv = "Description,Amount,Type,Date,Category\n";
-  transactions.forEach(t => {
-    csv += `"${t.desc}",${t.amount},${t.type},${t.date},${t.category}\n`;
-  });
-  const blob = new Blob([csv], { type: "text/csv" });
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(blob);
-  a.download = "budgetbuddy.csv";
-  a.click();
-};
-
-// 📄 Export PDF
-document.getElementById("downloadPDF").onclick = async () => {
-  const { jsPDF } = window.jspdf;
-  const pdf = new jsPDF();
-  const canvas = await html2canvas(document.body);
-  const img = canvas.toDataURL("image/png");
-  pdf.addImage(img, "PNG", 10, 10, 190, 0);
-  pdf.save("budgetbuddy.pdf");
-};
-
-// 🔐 Auth
-document.getElementById("loginBtn").onclick = () => signInWithPopup(auth, provider);
-document.getElementById("logoutBtn").onclick = () => signOut(auth);
-
-onAuthStateChanged(auth, user => {
-  const userInfo = document.getElementById("userInfo");
-  if (user) {
-    userInfo.textContent = `Welcome, ${user.displayName}`;
-    document.getElementById("loginBtn").classList.add("hidden");
-    document.getElementById("logoutBtn").classList.remove("hidden");
-    setupDatabase(user.uid);
-  } else {
-    userInfo.textContent = "Not logged in";
-    document.getElementById("loginBtn").classList.remove("hidden");
-    document.getElementById("logoutBtn").classList.add("hidden");
-    transactions = [];
-    updateUI();
-  }
-});
-
-  </script>
+</script>
 </body>
 </html>
+
